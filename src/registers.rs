@@ -45,8 +45,8 @@ impl Registers {
       5 => self.r5 = value,
       6 => self.r6 = value,
       7 => self.r7 = value,
-      9 => self.pc = value,
-      10 => self.cond = value,
+      8 => self.pc = value,
+      9 => self.cond = value,
       _ => panic!("index out of bound"),
     }
   }
@@ -61,8 +61,8 @@ impl Registers {
       5 => self.r5,
       6 => self.r6,
       7 => self.r7,
-      9 => self.pc,
-      10 => self.cond,
+      8 => self.pc,
+      9 => self.cond,
       _ => panic!("index out of bound"),
     }
   }
