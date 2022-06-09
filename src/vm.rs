@@ -28,10 +28,10 @@ impl Vm {
 pub fn execute_program(vm: &mut Vm) {
   while vm.registers.pc < MEMORY_SIZE as u16 {
     // read instruction
-    let instruction = vm.read_memory(vm.registers.pc);
+    let instr = vm.read_memory(vm.registers.pc);
     // increment program counter
     vm.registers.pc += 1;
     // Extract OP code and execute instruction
-    execute_instruction(instruction, vm);
+    execute_instruction(instr, vm);
   }
 }

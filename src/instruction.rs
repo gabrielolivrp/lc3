@@ -1,4 +1,7 @@
 use crate::vm::*;
+use std::io;
+use std::io::Write;
+use std::process;
 
 pub enum OpCode {
   BR = 0, // branch
@@ -58,8 +61,66 @@ pub fn execute_instruction(instr: u16, vm: &mut Vm) {
     Some(OpCode::STI) => unimplemented!(),
     Some(OpCode::JMP) => unimplemented!(),
     Some(OpCode::RES) => unimplemented!(),
-    Some(OpCode::LEA) => unimplemented!(),
-    Some(OpCode::TRAP) => unimplemented!(),
+    Some(OpCode::LEA) => lea(instr, vm),
+    Some(OpCode::TRAP) => trap(instr, vm),
     _ => {}
+  }
+}
+
+/// Extensão de sinal é uma operação para aumentar o número de bits de um número binário,
+/// preservando o sinal do número (positivo ou negativo) e seu valor
+/// Exemplo:
+/// 00 1010 (6 bits) => 0000 0000 0000 1010 (16 bits)
+fn sign_extend(mut x: u16, bit_count: u8) -> u16 {
+  if (x >> (bit_count - 1)) & 1 != 0 {
+    x |= 0xffff << bit_count;
+  }
+  x
+}
+
+fn lea(instr: u16, vm: &mut Vm) {
+  let dr = (instr >> 9) & 0x7;
+
+  let pc_offset = sign_extend(instr & 0x1ff, 9);
+
+  let val = vm.registers.pc as u32 + pc_offset as u32;
+
+  vm.registers.update(dr, val as u16);
+
+  vm.registers.update_r_cond_register(dr);
+}
+
+fn trap(instr: u16, vm: &mut Vm) {
+  match instr & 0xFF {
+    0x20 => {
+      // get char
+    }
+    0x21 => {
+      // out
+    }
+    0x22 => {
+      // puts
+      let mut index = vm.registers.r0;
+      let mut ch = vm.read_memory(index) as u8;
+      while ch != 0x0000 {
+        print!("{}", ch as char);
+        index += 1;
+        ch = vm.read_memory(index) as u8;
+      }
+      io::stdout().flush().expect("failed to flush");
+    }
+    0x23 => {
+      // in
+    }
+    0x24 => {
+      // putsp
+    }
+    0x25 => {
+      // halt
+      println!("HALT detected");
+      io::stdout().flush().expect("failed to flush");
+      process::exit(1)
+    }
+    _ => process::exit(1),
   }
 }
