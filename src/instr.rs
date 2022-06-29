@@ -48,16 +48,16 @@ pub fn execute_instruction(instr: u16, vm: &mut Vm) {
   let op_code = get_op_code(&instr);
   match op_code {
     Some(OpCode::BR) => unimplemented!(),
-    Some(OpCode::ADD) => unimplemented!(),
+    Some(OpCode::ADD) => add(instr, vm),
     Some(OpCode::LD) => unimplemented!(),
     Some(OpCode::ST) => unimplemented!(),
     Some(OpCode::JSR) => unimplemented!(),
-    Some(OpCode::AND) => unimplemented!(),
+    Some(OpCode::AND) => and(instr, vm),
     Some(OpCode::LDR) => unimplemented!(),
     Some(OpCode::STR) => unimplemented!(),
     Some(OpCode::RTI) => unimplemented!(),
     Some(OpCode::NOT) => unimplemented!(),
-    Some(OpCode::LDI) => unimplemented!(),
+    Some(OpCode::LDI) => ldi(instr, vm),
     Some(OpCode::STI) => unimplemented!(),
     Some(OpCode::JMP) => unimplemented!(),
     Some(OpCode::RES) => unimplemented!(),
@@ -79,14 +79,16 @@ fn sign_extend(mut x: u16, bit_count: u8) -> u16 {
 }
 
 fn lea(instr: u16, vm: &mut Vm) {
+  // registrador destino
   let dr = (instr >> 9) & 0x7;
-
+  // offset estendido para 16bits
   let pc_offset = sign_extend(instr & 0x1ff, 9);
 
-  let val = vm.registers.pc as u32 + pc_offset as u32;
+  // o valor que vamos armazenar no registrador destino (dr), vai ser
+  // o valor do contador de programa somado com o deslocamento
+  let value = vm.registers.pc as u32 + pc_offset as u32; // u32 para prevenir overflow
 
-  vm.registers.update(dr, val as u16);
-
+  vm.registers.update(dr, value as u16);
   vm.registers.update_r_cond_register(dr);
 }
 
@@ -100,12 +102,14 @@ fn trap(instr: u16, vm: &mut Vm) {
     }
     0x22 => {
       // puts
-      let mut index = vm.registers.r0;
-      let mut ch = vm.read_memory(index) as u8;
+      let mut index = vm.registers.r0; // endereço base
+      let mut ch = vm.read_memory(index) as u8; // leitura do caracter que está no endereço
+
+      // vai percorrer até encontrar o endereço 0x0000
       while ch != 0x0000 {
-        print!("{}", ch as char);
-        index += 1;
-        ch = vm.read_memory(index) as u8;
+        print!("{}", ch as char); // mostra o caracter na tela
+        index += 1; // adiciona mais uam posição no endereço
+        ch = vm.read_memory(index) as u8; // faz a leitura do caracter que está no novo endereço
       }
       io::stdout().flush().expect("failed to flush");
     }
@@ -123,4 +127,64 @@ fn trap(instr: u16, vm: &mut Vm) {
     }
     _ => process::exit(1),
   }
+}
+
+fn add(instr: u16, vm: &mut Vm) {
+  // registrador destino
+  let dr = (instr >> 9) & 0x7;
+  // endereço do primeiro operador
+  let sr1 = (instr >> 6) & 0x7;
+  // pega a flag que indica se o segundo operando, é imediato ou está
+  // em algum outro registrador
+  let imm_flag = (instr >> 5) & 0x1;
+  // caso a operaçao ocorrer em modo imediato, o valor deve ser igual a 1
+  if imm_flag == 1 {
+    // pega o valor imediato
+    let imm5 = sign_extend(instr & 0x1f, 5);
+    // u32 para prevenir overflow
+    let value = imm5 as u32 + vm.registers.get(sr1) as u32;
+    vm.registers.update(dr, value as u16);
+  } else {
+    // pega o endereço do segundo
+    let sr2 = instr & 0x7;
+    // realiza a soma dos dois valores
+    let value = vm.registers.get(sr1) as u32 + vm.registers.get(sr2) as u32;
+    vm.registers.update(dr, value as u16);
+  }
+  vm.registers.update_r_cond_register(dr)
+}
+
+fn ldi(instr: u16, vm: &mut Vm) {
+  // endereço do registrador destino
+  let dr = (instr >> 9) & 0x7;
+  // deslocamento já com o sinal estendido
+  let pc_offset = sign_extend(instr & 0x1ff, 9);
+  // realiza a leitura do endereço resultante da soma do registrador pc com o valor de offset
+  let indirect_address = vm.read_memory(vm.registers.pc + pc_offset);
+  // realiza a leitura do endereço
+  let value = vm.read_memory(indirect_address);
+  vm.registers.update(dr, value);
+  vm.registers.update_r_cond_register(dr)
+}
+
+fn and(instr: u16, vm: &mut Vm) {
+  // registrador destino
+  let dr = (instr >> 9) & 0x7;
+  // endereço do primeiro operando
+  let sr1 = (instr >> 6) & 0x7;
+  // flag que indica o modo da operação
+  let imm_flag = (instr >> 5) & 0x1;
+
+  if imm_flag == 1 {
+    // pega o valor imediato
+    let imm5 = sign_extend(instr & 0x1F, 5);
+    vm.registers.update(dr, vm.registers.get(sr1) & imm5);
+  } else {
+    // pega o endereço do segundo operando
+    let sr2 = instr & 0x7;
+    // realiza a operação
+    let value = vm.registers.get(sr1) & vm.registers.get(sr2);
+    vm.registers.update(dr, value);
+  }
+  vm.registers.update_r_cond_register(dr)
 }
