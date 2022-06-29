@@ -1,4 +1,4 @@
-use crate::instruction::*;
+use crate::instr::*;
 use crate::registers::*;
 
 pub const MEMORY_SIZE: usize = u16::MAX as usize;

@@ -51,7 +51,7 @@ impl Registers {
     }
   }
 
-  pub fn get(&mut self, index: u16) -> u16 {
+  pub fn get(&self, index: u16) -> u16 {
     match index {
       0 => self.r0,
       1 => self.r1,
