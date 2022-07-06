@@ -47,7 +47,7 @@ pub fn get_op_code(instr: &u16) -> Option<OpCode> {
 pub fn execute_instruction(instr: u16, vm: &mut Vm) {
   let op_code = get_op_code(&instr);
   match op_code {
-    Some(OpCode::BR) => unimplemented!(),
+    Some(OpCode::BR) => br(instr, vm),
     Some(OpCode::ADD) => add(instr, vm),
     Some(OpCode::LD) => unimplemented!(),
     Some(OpCode::ST) => unimplemented!(),
@@ -56,7 +56,7 @@ pub fn execute_instruction(instr: u16, vm: &mut Vm) {
     Some(OpCode::LDR) => unimplemented!(),
     Some(OpCode::STR) => unimplemented!(),
     Some(OpCode::RTI) => unimplemented!(),
-    Some(OpCode::NOT) => unimplemented!(),
+    Some(OpCode::NOT) => not(instr, vm),
     Some(OpCode::LDI) => ldi(instr, vm),
     Some(OpCode::STI) => unimplemented!(),
     Some(OpCode::JMP) => unimplemented!(),
@@ -187,4 +187,21 @@ fn and(instr: u16, vm: &mut Vm) {
     vm.registers.update(dr, value);
   }
   vm.registers.update_r_cond_register(dr)
+}
+
+fn not(instr: u16, vm: &mut Vm) {
+  let dr = (instr >> 9) & 0x7;
+  let sr1 = (instr >> 6) & 0x7;
+  let value = vm.registers.get(sr1);
+  vm.registers.update(dr, !value);
+  vm.registers.update_r_cond_register(dr);
+}
+
+fn br(instr: u16, vm: &mut Vm) {
+  let pc_offset = sign_extend(instr & 0x1ff, 9);
+  let cond_flag = (instr >> 9) & 0x7;
+  if cond_flag & vm.registers.cond != 0 {
+    let value = vm.registers.pc as u32 + pc_offset as u32;
+    vm.registers.pc = value as u16;
+  }
 }
