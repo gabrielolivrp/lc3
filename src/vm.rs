@@ -32,6 +32,6 @@ pub fn execute_program(vm: &mut Vm) {
     // increment program counter
     vm.registers.pc += 1;
     // Extract OP code and execute instruction
-    execute_instruction(instr, vm);
+    execute_instr(instr, vm);
   }
 }

@@ -44,22 +44,22 @@ pub fn get_op_code(instr: &u16) -> Option<OpCode> {
   }
 }
 
-pub fn execute_instruction(instr: u16, vm: &mut Vm) {
+pub fn execute_instr(instr: u16, vm: &mut Vm) {
   let op_code = get_op_code(&instr);
   match op_code {
     Some(OpCode::BR) => br(instr, vm),
     Some(OpCode::ADD) => add(instr, vm),
-    Some(OpCode::LD) => unimplemented!(),
+    Some(OpCode::LD) => ld(instr, vm),
     Some(OpCode::ST) => unimplemented!(),
-    Some(OpCode::JSR) => unimplemented!(),
+    Some(OpCode::JSR) => jsr(instr, vm),
     Some(OpCode::AND) => and(instr, vm),
-    Some(OpCode::LDR) => unimplemented!(),
+    Some(OpCode::LDR) => ldr(instr, vm),
     Some(OpCode::STR) => unimplemented!(),
     Some(OpCode::RTI) => unimplemented!(),
     Some(OpCode::NOT) => not(instr, vm),
     Some(OpCode::LDI) => ldi(instr, vm),
     Some(OpCode::STI) => unimplemented!(),
-    Some(OpCode::JMP) => unimplemented!(),
+    Some(OpCode::JMP) => jmp(instr, vm),
     Some(OpCode::RES) => unimplemented!(),
     Some(OpCode::LEA) => lea(instr, vm),
     Some(OpCode::TRAP) => trap(instr, vm),
@@ -204,4 +204,46 @@ fn br(instr: u16, vm: &mut Vm) {
     let value = vm.registers.pc as u32 + pc_offset as u32;
     vm.registers.pc = value as u16;
   }
+}
+
+fn jmp(instr: u16, vm: &mut Vm) {
+  let base_reg = (instr >> 6) & 0x7;
+  vm.registers.pc = vm.registers.get(base_reg);
+}
+
+fn jsr(instr: u16, vm: &mut Vm) {
+  let base_reg = (instr >> 6) & 0x7;
+  let long_pc_offset = sign_extend(instr & 0x7ff, 11);
+  let long_flag = (instr >> 11) & 1;
+
+  vm.registers.r7 = vm.registers.pc;
+
+  if long_flag != 0 {
+    let value = vm.registers.pc as u32 + long_pc_offset as u32;
+    vm.registers.pc = value as u16;
+  } else {
+    vm.registers.pc = vm.registers.get(base_reg);
+  }
+}
+
+fn ld(instr: u16, vm: &mut Vm) {
+  let dr = (instr >> 9) & 0x7;
+  let pc_offset = sign_extend(instr & 0x1ff, 9);
+  let mem = pc_offset as u32 + vm.registers.pc as u32;
+
+  let value = vm.read_memory(mem as u16);
+  vm.registers.update(dr, value);
+  vm.registers.update_r_cond_register(dr);
+}
+
+fn ldr(instr: u16, vm: &mut Vm) {
+  let dr = (instr >> 9) & 0x7;
+  let base_reg = (instr >> 6) & 0x7;
+  let offset = sign_extend(instr & 0x3F, 6);
+  let value = vm.registers.get(base_reg) as u32 + offset as u32;
+
+  let mem_value = vm.read_memory(value as u16).clone();
+
+  vm.registers.update(dr, mem_value);
+  vm.registers.update_r_cond_register(dr);
 }
