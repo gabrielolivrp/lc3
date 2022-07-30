@@ -50,17 +50,15 @@ pub fn execute_instr(instr: u16, vm: &mut Vm) {
     Some(OpCode::BR) => br(instr, vm),
     Some(OpCode::ADD) => add(instr, vm),
     Some(OpCode::LD) => ld(instr, vm),
-    Some(OpCode::ST) => unimplemented!(),
+    Some(OpCode::ST) => st(instr, vm),
     Some(OpCode::JSR) => jsr(instr, vm),
     Some(OpCode::AND) => and(instr, vm),
     Some(OpCode::LDR) => ldr(instr, vm),
-    Some(OpCode::STR) => unimplemented!(),
-    Some(OpCode::RTI) => unimplemented!(),
+    Some(OpCode::STR) => str(instr, vm),
     Some(OpCode::NOT) => not(instr, vm),
     Some(OpCode::LDI) => ldi(instr, vm),
-    Some(OpCode::STI) => unimplemented!(),
+    Some(OpCode::STI) => sti(instr, vm),
     Some(OpCode::JMP) => jmp(instr, vm),
-    Some(OpCode::RES) => unimplemented!(),
     Some(OpCode::LEA) => lea(instr, vm),
     Some(OpCode::TRAP) => trap(instr, vm),
     _ => {}
@@ -270,4 +268,45 @@ fn ldr(instr: u16, vm: &mut Vm) {
   // salvar o valor na memória no registrador destino
   vm.registers.update(dr, value);
   vm.registers.update_r_cond_register(dr);
+}
+
+fn st(instr: u16, vm: &mut Vm) {
+  // registrador
+  let sr = (instr >> 9) & 0x7;
+  // deslocamento
+  let pc_offset = sign_extend(instr & 0x1ff, 9);
+  // calcula o endereço de memória que será salvo o valor de `sr`
+  let mem = (vm.registers.pc as u32 + pc_offset as u32) as u16;
+  // valor do registrador `sr` que será salvo na memória
+  let value = vm.registers.get(sr);
+  vm.write_memory(mem as usize, value);
+}
+
+fn sti(instr: u16, vm: &mut Vm) {
+  // registrador
+  let sr = (instr >> 9) & 0x7;
+  // deslocamento
+  let pc_offset = sign_extend(instr & 0x1ff, 9);
+  // calcula o endereço da memória que está o endereço que o valor
+  // do registrador `sr` será salvo
+  let indirect_address = (vm.registers.pc as u32 + pc_offset as u32) as u16;
+  // endereço que o valor do registrador `sr` será salvo
+  let mem = vm.read_memory(indirect_address);
+  // valor do registrador `sr` que será salvo na memória
+  let value = vm.registers.get(sr);
+  vm.write_memory(mem as usize, value);
+}
+
+fn str(instr: u16, vm: &mut Vm) {
+  // registrador destino
+  let dr = (instr >> 9) & 0x7;
+  // registrador base
+  let base_reg = (instr >> 6) & 0x7;
+  // deslocamento
+  let offset = sign_extend(instr & 0x3F, 6);
+  // calcula o endereço de memória que o registraodr `dr` será salvo
+  let mem = (vm.registers.get(base_reg) as u32 + offset as u32) as u16;
+  // valor do registrador `dr` que será salvo na memória
+  let value = vm.registers.get(dr);
+  vm.write_memory(mem as usize, value);
 }
