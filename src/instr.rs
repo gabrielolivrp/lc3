@@ -102,14 +102,19 @@ fn trap(instr: u16, vm: &mut Vm) {
     }
     0x22 => {
       // puts
-      let mut index = vm.registers.r0; // endereço base
-      let mut ch = vm.read_memory(index) as u8; // leitura do caracter que está no endereço
+      // endereço base
+      let mut index = vm.registers.r0;
+      // leitura do caracter que está no endereço
+      let mut ch = vm.read_memory(index) as u8;
 
       // vai percorrer até encontrar o endereço 0x0000
       while ch != 0x0000 {
-        print!("{}", ch as char); // mostra o caracter na tela
-        index += 1; // adiciona mais uam posição no endereço
-        ch = vm.read_memory(index) as u8; // faz a leitura do caracter que está no novo endereço
+        // mostra o caracter na tela
+        print!("{}", ch as char);
+        // adiciona mais uam posição no endereço
+        index += 1;
+        // faz a leitura do caracter que está no novo endereço
+        ch = vm.read_memory(index) as u8;
       }
       io::stdout().flush().expect("failed to flush");
     }
@@ -132,7 +137,7 @@ fn trap(instr: u16, vm: &mut Vm) {
 fn add(instr: u16, vm: &mut Vm) {
   // registrador destino
   let dr = (instr >> 9) & 0x7;
-  // endereço do primeiro operador
+  // registrador do primeiro operador
   let sr1 = (instr >> 6) & 0x7;
   // pega a flag que indica se o segundo operando, é imediato ou está
   // em algum outro registrador
@@ -145,7 +150,7 @@ fn add(instr: u16, vm: &mut Vm) {
     let value = imm5 as u32 + vm.registers.get(sr1) as u32;
     vm.registers.update(dr, value as u16);
   } else {
-    // pega o endereço do segundo
+    // pega o registrador do segundo
     let sr2 = instr & 0x7;
     // realiza a soma dos dois valores
     let value = vm.registers.get(sr1) as u32 + vm.registers.get(sr2) as u32;
@@ -155,13 +160,14 @@ fn add(instr: u16, vm: &mut Vm) {
 }
 
 fn ldi(instr: u16, vm: &mut Vm) {
-  // endereço do registrador destino
+  // registrador destino
   let dr = (instr >> 9) & 0x7;
   // deslocamento já com o sinal estendido
   let pc_offset = sign_extend(instr & 0x1ff, 9);
-  // realiza a leitura do endereço resultante da soma do registrador pc com o valor de offset
+  // realiza a leitura do endereço resultante da soma do registrador pc com o
+  // valor de offset
   let indirect_address = vm.read_memory(vm.registers.pc + pc_offset);
-  // realiza a leitura do endereço
+  // realiza a leitura do endereço obtido
   let value = vm.read_memory(indirect_address);
   vm.registers.update(dr, value);
   vm.registers.update_r_cond_register(dr)
@@ -170,17 +176,17 @@ fn ldi(instr: u16, vm: &mut Vm) {
 fn and(instr: u16, vm: &mut Vm) {
   // registrador destino
   let dr = (instr >> 9) & 0x7;
-  // endereço do primeiro operando
+  // registrador do primeiro operando
   let sr1 = (instr >> 6) & 0x7;
   // flag que indica o modo da operação
   let imm_flag = (instr >> 5) & 0x1;
-
+  // caso a flag seja igual a 1, a operação será em modo imediato
   if imm_flag == 1 {
-    // pega o valor imediato
+    // valor imediato
     let imm5 = sign_extend(instr & 0x1F, 5);
     vm.registers.update(dr, vm.registers.get(sr1) & imm5);
   } else {
-    // pega o endereço do segundo operando
+    // registrador do segundo operando
     let sr2 = instr & 0x7;
     // realiza a operação
     let value = vm.registers.get(sr1) & vm.registers.get(sr2);
@@ -190,9 +196,13 @@ fn and(instr: u16, vm: &mut Vm) {
 }
 
 fn not(instr: u16, vm: &mut Vm) {
+  // registrador destino
   let dr = (instr >> 9) & 0x7;
+  // registrador do operando
   let sr1 = (instr >> 6) & 0x7;
+  // obtem o valor do operando
   let value = vm.registers.get(sr1);
+  // salvar o valor do operando negado, no registrador destino
   vm.registers.update(dr, !value);
   vm.registers.update_r_cond_register(dr);
 }
@@ -207,43 +217,57 @@ fn br(instr: u16, vm: &mut Vm) {
 }
 
 fn jmp(instr: u16, vm: &mut Vm) {
+  // registrador base
   let base_reg = (instr >> 6) & 0x7;
+  // move o `pc` para o novo endereço
   vm.registers.pc = vm.registers.get(base_reg);
 }
 
 fn jsr(instr: u16, vm: &mut Vm) {
+  // registrador base
   let base_reg = (instr >> 6) & 0x7;
+  // offset extendido para 16bits
   let long_pc_offset = sign_extend(instr & 0x7ff, 11);
   let long_flag = (instr >> 11) & 1;
 
   vm.registers.r7 = vm.registers.pc;
 
   if long_flag != 0 {
+    // caso JSR, o endereço para saltar é calculado a partir do deslocamento do PC offset
     let value = vm.registers.pc as u32 + long_pc_offset as u32;
     vm.registers.pc = value as u16;
   } else {
+    // caso JSRR, o endereço para saltar esta no registrador base
     vm.registers.pc = vm.registers.get(base_reg);
   }
 }
 
 fn ld(instr: u16, vm: &mut Vm) {
+  // registrador destino
   let dr = (instr >> 9) & 0x7;
+  // deslocamento
   let pc_offset = sign_extend(instr & 0x1ff, 9);
+  // endereço do valor na memória
   let mem = pc_offset as u32 + vm.registers.pc as u32;
-
+  // obtem o valor que está na memória
   let value = vm.read_memory(mem as u16);
+  // carrega no registrador destino
   vm.registers.update(dr, value);
   vm.registers.update_r_cond_register(dr);
 }
 
 fn ldr(instr: u16, vm: &mut Vm) {
+  // registrador destino
   let dr = (instr >> 9) & 0x7;
+  // registrador base
   let base_reg = (instr >> 6) & 0x7;
+  // deslocamento
   let offset = sign_extend(instr & 0x3F, 6);
-  let value = vm.registers.get(base_reg) as u32 + offset as u32;
-
-  let mem_value = vm.read_memory(value as u16).clone();
-
-  vm.registers.update(dr, mem_value);
+  // endereço do valor na memória
+  let mem = vm.registers.get(base_reg) as u32 + offset as u32;
+  // valor que está no endereço da memória obtido
+  let value = vm.read_memory(mem as u16).clone();
+  // salvar o valor na memória no registrador destino
+  vm.registers.update(dr, value);
   vm.registers.update_r_cond_register(dr);
 }
